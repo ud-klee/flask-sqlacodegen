@@ -1,8 +1,6 @@
 import sys
-
 from setuptools import setup, find_packages
 from setuptools.command.test import test as TestCommand
-
 import sqlacodegen
 
 
@@ -16,11 +14,6 @@ class PyTest(TestCommand):
         import pytest
         errno = pytest.main(self.test_args)
         sys.exit(errno)
-
-
-extra_requirements = ()
-if sys.version_info < (2, 7):
-    extra_requirements = ('argparse',)
 
 setup(
     name='flask-sqlacodegen',
@@ -36,21 +29,17 @@ setup(
         'Topic :: Database',
         'Topic :: Software Development :: Code Generators',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2.6',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.2',
-        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5'
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6'
     ],
     keywords=['sqlalchemy', 'sqlacodegen', 'flask'],
     license='MIT',
     packages=find_packages(exclude=['tests']),
     install_requires=(
-        'SQLAlchemy >= 0.6.0',
+        'SQLAlchemy >= 1.2.0',
         'inflect >= 0.2.0'
-    ) + extra_requirements,
+    ),
     tests_require=['pytest', 'pytest-pep8'],
     cmdclass={'test': PyTest},
     zip_safe=False,

@@ -1,24 +1,17 @@
 """Contains the code generation logic and helper functions."""
-from __future__ import unicode_literals, division, print_function, absolute_import
 from collections import defaultdict
 from inspect import ArgSpec
 from keyword import iskeyword
 import inspect
 import sys
 import re
-
 from sqlalchemy import (Enum, ForeignKeyConstraint, PrimaryKeyConstraint, CheckConstraint, UniqueConstraint, Table,
                         Column)
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.util import OrderedDict
 from sqlalchemy.types import Boolean, String
 import sqlalchemy
-
-try:
-    from sqlalchemy.sql.expression import text, TextClause
-except ImportError:
-    # SQLAlchemy < 0.8
-    from sqlalchemy.sql.expression import text, _TextClause as TextClause
+from sqlalchemy.sql.expression import TextClause
 
 _re_boolean_check_constraint = re.compile(r"(?:(?:.*?)\.)?(.*?) IN \(0, 1\)")
 _re_column_name = re.compile(r'(?:(["`]?)(?:.*)\1\.)?(["`]?)(.*)\2')
@@ -159,6 +152,8 @@ def _render_column(column, show_name):
         kwarg.append('index')
     if column.server_default:
         server_default = 'server_default=' + _flask_prepend + 'FetchedValue()'
+    if column.comment:
+        column_comment = 'comment="{}"'.format(column.comment.replace('"', "'"))
 
     return _flask_prepend + 'Column({0})'.format(', '.join(
         ([repr(column.name)] if show_name else []) +
@@ -166,7 +161,8 @@ def _render_column(column, show_name):
         [_render_constraint(x) for x in dedicated_fks] +
         [repr(x) for x in column.constraints] +
         ['{0}={1}'.format(k, repr(getattr(column, k))) for k in kwarg] +
-        ([server_default] if column.server_default else [])
+        ([server_default] if column.server_default else []) +
+        ([column_comment] if column.comment else [])
     ))
 
 
@@ -361,6 +357,9 @@ class ModelClass(Model):
 
     def render(self):
         text = 'class {0}({1}):\n'.format(self.name, self.parent_name)
+        if self.table.comment:
+            table_comment = '    """\n    {}\n    """\n'.format(self.table.comment.replace('"', "'"))
+        text += table_comment
         text += '    __tablename__ = {0!r}\n'.format(self.table.name)
 
         # Render constraints and indexes as __table_args__
@@ -522,7 +521,6 @@ class ManyToManyRelationship(Relationship):
 
 
 class CodeGenerator(object):
-    header = '# coding: utf-8'
     footer = ''
 
     def __init__(self, metadata, noindexes=False, noconstraints=False,
@@ -590,7 +588,7 @@ class CodeGenerator(object):
                         # Turn any string-type column with a CheckConstraint like "column IN (...)" into an Enum
                         match = _re_enum_check_constraint.match(sqltext)
                         if match:
-                            colname = _re_column_name.match(match.group(1)).group(3)
+                            colname = _re_column_name.match(match.group(1)).group(3).lower()
                             items = match.group(2)
                             if isinstance(table.c[colname].type, String):
                                 table.constraints.remove(constraint)
@@ -638,8 +636,6 @@ class CodeGenerator(object):
             self.collector.add_literal_import('sqlalchemy', 'MetaData')
 
     def render(self, outfile=sys.stdout):
-        print(self.header, file=outfile)
-
         # Render the collected imports
         print(self.collector.render() + '\n\n', file=outfile)
 
@@ -654,7 +650,7 @@ class CodeGenerator(object):
         # Render the model tables and classes
         for model in self.models:
             print('\n\n', file=outfile)
-            print(model.render().rstrip('\n').encode('utf-8'), file=outfile)
+            print(model.render().rstrip('\n'), file=outfile)
 
         if self.footer:
             print(self.footer, file=outfile)
