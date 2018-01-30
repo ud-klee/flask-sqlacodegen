@@ -358,8 +358,7 @@ class ModelClass(Model):
     def render(self):
         text = 'class {0}({1}):\n'.format(self.name, self.parent_name)
         if self.table.comment:
-            table_comment = '    """\n    {}\n    """\n'.format(self.table.comment.replace('"', "'"))
-        text += table_comment
+            text += '    """\n    {}\n    """\n'.format(self.table.comment.replace('"', "'"))
         text += '    __tablename__ = {0!r}\n'.format(self.table.name)
 
         # Render constraints and indexes as __table_args__
